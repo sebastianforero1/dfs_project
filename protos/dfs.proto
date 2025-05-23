@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+// Definir un paquete ayuda a evitar colisiones de nombres y es buena práctica.
+package dfs_service;
+
+// ---- Mensajes Comunes ----
+
+// Información sobre un bloque específico.
+message BlockInfo {
+    string block_id = 1;    // ID único del bloque (ej. file_id_block_index_uuid)
+    string file_id = 2;     // ID del archivo al que pertenece este bloque
+    int32 block_index = 3;  // Índice secuencial del bloque dentro del archivo (0, 1, 2...)
+    uint64 block_size = 4;  // Tamaño real de los datos en este bloque (puede ser menor que el tamaño de bloque configurado para el último bloque)
+}
+
+// Información de ubicación de un DataNode.
+message DataNodeLocation {
+    string datanode_id = 1;     // ID único del DataNode
+    string datanode_address = 2; // Dirección gRPC del DataNode (ej. "ip:port")
+}
+
+
+// ---- Servicio DataNodeOperations (para Clientes y otros DataNodes) ----
+// Expuesto por cada DataNode.
+service DataNodeOperations {
+    // Cliente (o DataNode líder) escribe un bloque a este DataNode.
+    // Si este DataNode es el primario, la solicitud incluirá seguidores para replicación.
+    rpc WriteBlock(WriteBlockRequest) returns (WriteBlockResponse);
+
+    // Cliente lee un bloque de este DataNode.
+    rpc ReadBlock(ReadBlockRequest) returns (ReadBlockResponse);
+
+    // DataNode (líder de bloque) instruye a este DataNode (seguidor) para que almacene una réplica de un bloque.
+    rpc ReplicateBlockToFollower(ReplicateBlockToFollowerRequest) returns (ReplicateBlockToFollowerResponse);
+    
+    // (Opcional) RPC para que el NameNode instruya directamente la eliminación de bloques.
+    // rpc DeleteBlocks(DeleteBlocksRequest) returns (DeleteBlocksResponse);
+}
+
+// Solicitud para escribir un bloque.
+message WriteBlockRequest {
+    BlockInfo block_info = 1;               // Metadatos del bloque.
+    bytes data = 2;                         // Contenido binario del bloque.
+    repeated DataNodeLocation followers_for_replication = 3; // Lista de DataNodes seguidores donde el primario debe replicar (si este DN es primario).
+}
+
+// Respuesta a una solicitud de escritura de bloque.
+message WriteBlockResponse {
+    bool success = 1;                       // True si la operación (escritura local y/o inicio de replicación) fue exitosa.
+    string message = 2;                     // Mensaje descriptivo del resultado.
+}
+
+// Solicitud para leer un bloque.
+message ReadBlockRequest {
+    string block_id = 1;                    // ID del bloque a leer.
+}
+
+// Respuesta a una solicitud de lectura de bloque.
+message ReadBlockResponse {
+    bytes data = 1;                         // Contenido binario del bloque leído.
+    bool success = 2;                       // True si la lectura fue exitosa.
+    string message = 3;                     // Mensaje descriptivo.
+}
+
+// Solicitud para replicar un bloque a un seguidor.
+message ReplicateBlockToFollowerRequest {
+    BlockInfo block_info = 1;               // Metadatos del bloque a replicar.
+    bytes data = 2;                         // Contenido binario del bloque.
+    // No se necesita 'followers_for_replication' aquí, el seguidor solo escribe.
+}
+
+// Respuesta de una operación de replicación en un seguidor.
+message ReplicateBlockToFollowerResponse {
+    bool success = 1;                       // True si el seguidor almacenó la réplica exitosamente.
+    string message = 2;                     // Mensaje descriptivo.
+}
+
+/*
+// (Opcional) Mensajes para DeleteBlocks RPC
+message DeleteBlocksRequest {
+    repeated string block_ids_to_delete = 1; // Lista de IDs de bloques a eliminar.
+}
+
+message DeleteBlocksResponse {
+    bool success = 1;
+    string message = 2;
+}
+*/
+
+
+// ---- Servicio NameNodeManagement (para DataNodes) ----
+// Expuesto por el NameNode.
+service NameNodeManagement {
+    // DataNode envía un heartbeat periódico al NameNode,
+    // incluyendo un reporte de los bloques que almacena y su estado.
+    rpc SendHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+// Solicitud de heartbeat de un DataNode al NameNode.
+message HeartbeatRequest {
+    DataNodeLocation datanode_info = 1;         // Información de identificación y dirección del DataNode.
+    repeated string block_ids_stored = 2;       // Lista de IDs de bloques que este DataNode actualmente almacena.
+    uint64 available_storage_bytes = 3;     // Espacio de almacenamiento disponible (en bytes) en el DataNode.
+    // Se podrían añadir otras métricas aquí (ej. carga de CPU, número de conexiones activas, etc.)
+}
+
+// Respuesta del NameNode a un heartbeat.
+message HeartbeatResponse {
+    // Lista de comandos que el NameNode envía al DataNode para que ejecute.
+    // Ejemplos de formato de comando:
+    // - "DELETE_BLOCK:block_id_xyz"
+    // - "REPLICATE_BLOCK:block_id_abc:TARGET_DN_ADDR:ip_destino:puerto_destino"
+    repeated string commands_from_namenode = 1;
+}
+
+// ---- (Opcional) Servicio para Sincronización NameNode Líder-Seguidor ----
+// message MetadataLogEntry {
+//     uint64 entry_id = 1;
+//     enum OperationType { CREATE = 0; DELETE = 1; UPDATE = 2; }
+//     OperationType operation = 2;
+//     string path = 3;
+//     bytes details = 4; // Contenido específico de la operación, serializado
+// }
+// message MetadataSyncAck {
+//     uint64 last_processed_entry_id = 1;
+//     bool success = 2;
+// }
+// service NameNodeSync {
+//     rpc SyncMetadataStream(stream MetadataLogEntry) returns (stream MetadataSyncAck);
+//     rpc GetFullMetadataSnapshot(google.protobuf.Empty) returns (MetadataSnapshot);
+// }
+// message MetadataSnapshot {
+//     bytes serialized_fs_tree = 1;
+//     bytes serialized_file_to_block_map = 2;
+//     // ... más estado ...
+// }
+// import "google/protobuf/empty.proto"; // Necesitarías importar esto si usas Empty

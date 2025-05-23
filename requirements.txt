@@ -1,0 +1,19 @@
+# requirements.txt
+
+# Para la API REST del NameNode
+fastapi>=0.90.0,<0.111.0 # Mantener un rango o una versión específica
+uvicorn[standard]>=0.20.0,<0.28.0 # 'standard' incluye gunicorn y otros extras útiles
+
+# Para la comunicación gRPC
+grpcio>=1.50.0,<1.63.0
+grpcio-tools>=1.50.0,<1.63.0 # Necesario para compilar .proto y por algunas dependencias internas
+
+# Para las solicitudes HTTP del cliente al NameNode
+requests>=2.28.0,<2.32.0
+
+# Pydantic es una dependencia de FastAPI, pero es bueno listarla si se usa directamente
+# y para asegurar una versión compatible. FastAPI la instalará de todas formas.
+# pydantic>=1.10.0,<2.6.0 # FastAPI se encarga de su versión de Pydantic
+
+# (Opcional) Para leer variables de entorno de archivos .env durante el desarrollo local
+# python-dotenv>=0.20.0,<1.1.0
