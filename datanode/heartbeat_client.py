@@ -7,8 +7,8 @@ import time # Para el intervalo del heartbeat
 # Importaciones de los stubs generados por gRPC
 # Asegúrate de que dfs_service_pb2.py y dfs_service_pb2_grpc.py
 # estén en la raíz del proyecto o en una ubicación accesible por PYTHONPATH.
-import dfs_service_pb2
-import dfs_service_pb2_grpc
+import dfs_pb2
+import dfs_pb2_grpc
 
 # --- Variables de Configuración (serán establecidas por main_datanode.py) ---
 # Estas variables se configuran mediante "inyección" desde main_datanode.py
@@ -34,7 +34,7 @@ async def run_heartbeat_sender():
             # que mantener un canal abierto, pero es más robusto ante desconexiones temporales del NameNode.
             # Para un sistema de producción, se podría considerar una estrategia de reconexión más sofisticada.
             async with grpc.aio.insecure_channel(NAMENODE_GRPC_TARGET_ADDRESS) as channel:
-                stub = dfs_service_pb2_grpc.NameNodeManagementStub(channel)
+                stub = dfs_pb2_grpc.NameNodeManagementStub(channel)
 
                 # 1. Obtener la lista de IDs de bloques almacenados actualmente por este DataNode.
                 #    Esto DEBE ser implementado correctamente en BlockStore.
@@ -56,8 +56,8 @@ async def run_heartbeat_sender():
                     available_storage = block_store_instance.get_available_storage_bytes()
 
                 # 3. Preparar la solicitud de heartbeat.
-                heartbeat_request = dfs_service_pb2.HeartbeatRequest(
-                    datanode_info=dfs_service_pb2.DataNodeLocation(
+                heartbeat_request = dfs_pb2.HeartbeatRequest(
+                    datanode_info=dfs_pb2.DataNodeLocation(
                         datanode_id=THIS_DATANODE_ID,
                         datanode_address=THIS_DATANODE_GRPC_ADDRESS # La dirección que este DN anuncia
                     ),
@@ -157,7 +157,7 @@ async def handle_block_replication_command(block_id_to_replicate: str, target_da
     #    El DataNode destino usará su RPC 'ReplicateBlockToFollower'.
     try:
         async with grpc.aio.insecure_channel(target_datanode_address) as channel:
-            stub = dfs_service_pb2_grpc.DataNodeOperationsStub(channel)
+            stub = dfs_pb2_grpc.DataNodeOperationsStub(channel)
             
             # Se necesita la información completa del bloque (BlockInfo).
             # El NameNode, al enviar el comando REPLICATE_BLOCK, podría incluir más metadatos del bloque
@@ -168,7 +168,7 @@ async def handle_block_replication_command(block_id_to_replicate: str, target_da
             # el NameNode debería proveer esa información en el comando.
             # Aquí crearemos un BlockInfo simple.
             # ¡ESTO ES UNA SIMPLIFICACIÓN! El NameNode debería proveer los metadatos completos del bloque.
-            block_info_for_replication = dfs_service_pb2.BlockInfo(
+            block_info_for_replication = dfs_pb2.BlockInfo(
                 block_id=block_id_to_replicate,
                 # file_id, block_index, block_size serían idealmente proporcionados por el NameNode
                 # en el comando de replicación si el receptor los necesita para algo más que solo almacenar por block_id.
@@ -176,7 +176,7 @@ async def handle_block_replication_command(block_id_to_replicate: str, target_da
                 block_size=len(block_data)
             )
 
-            replication_request = dfs_service_pb2.ReplicateBlockToFollowerRequest(
+            replication_request = dfs_pb2.ReplicateBlockToFollowerRequest(
                 block_info=block_info_for_replication,
                 data=block_data
             )

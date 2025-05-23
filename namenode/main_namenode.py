@@ -15,7 +15,7 @@ from .grpc_services import NameNodeManagementServicer # Implementación del serv
 from .metadata_manager import MetadataManager # Clase para gestionar los metadatos
 
 # Importaciones de los stubs generados por gRPC
-import dfs_service_pb2_grpc # Asegúrate que este archivo esté en la raíz del proyecto o PYTHONPATH
+import dfs_pb2_grpc # Asegúrate que este archivo esté en la raíz del proyecto o PYTHONPATH
 
 # --- Instancia Global del MetadataManager ---
 # Se inicializa con la configuración agrupada desde config_namenode.py
@@ -49,7 +49,7 @@ async def serve_grpc_services():
     server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
     
     # Añadir el servicer para las operaciones de gestión de DataNodes
-    dfs_service_pb2_grpc.add_NameNodeManagementServicer_to_server(
+    dfs_pb2_grpc.add_NameNodeManagementServicer_to_server(
         NameNodeManagementServicer(), # Esta instancia ya tiene metadata_manager_instance inyectado indirectamente
         server
     )

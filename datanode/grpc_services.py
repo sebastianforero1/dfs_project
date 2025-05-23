@@ -6,8 +6,8 @@ import asyncio # Para la replicación asíncrona si se decide implementar así
 # Importaciones de los stubs generados por gRPC
 # Asegúrate de que dfs_service_pb2.py y dfs_service_pb2_grpc.py
 # estén en la raíz del proyecto o en una ubicación accesible por PYTHONPATH.
-import dfs_service_pb2
-import dfs_service_pb2_grpc
+import dfs_pb2
+import dfs_pb2_grpc
 
 # --- Variables de Configuración/Instancias (serán establecidas por main_datanode.py) ---
 # Estas variables se configuran mediante "inyección" desde main_datanode.py
@@ -17,13 +17,13 @@ block_store_instance = None # Instancia de BlockStore para las operaciones de di
 THIS_DATANODE_ID = "datanode_unconfigured_grpc"
 THIS_DATANODE_GRPC_ADDRESS = "localhost:0" # Dirección que este DataNode anuncia (para logging)
 
-class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer):
+class DataNodeOperationsServicer(dfs_pb2_grpc.DataNodeOperationsServicer):
     """
     Implementación del servicio gRPC 'DataNodeOperations'.
     Este servicio maneja las operaciones de lectura, escritura y replicación de bloques.
     """
 
-    async def WriteBlock(self, request: dfs_service_pb2.WriteBlockRequest, context: grpc.aio.ServicerContext):
+    async def WriteBlock(self, request: dfs_pb2.WriteBlockRequest, context: grpc.aio.ServicerContext):
         """
         RPC para que un cliente escriba un bloque en este DataNode.
         Si este DataNode es el primario para el bloque, también se encarga de
@@ -34,7 +34,7 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
             print(error_message)
             context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details(error_message)
-            return dfs_service_pb2.WriteBlockResponse(success=False, message=error_message)
+            return dfs_pb2.WriteBlockResponse(success=False, message=error_message)
 
         block_info = request.block_info
         block_id = block_info.block_id
@@ -51,7 +51,7 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
             print(error_message)
             context.set_code(grpc.StatusCode.INTERNAL) # Error interno del servidor
             context.set_details(error_message)
-            return dfs_service_pb2.WriteBlockResponse(success=False, message=error_message)
+            return dfs_pb2.WriteBlockResponse(success=False, message=error_message)
 
         # 2. Si la escritura local fue exitosa, y hay seguidores, replicar el bloque.
         #    Este DataNode actúa como "líder del bloque" para esta escritura.
@@ -106,20 +106,20 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
         # Sin embargo, para un sistema WORM estricto con replicación síncrona, se podría fallar si `all_replications_successful` es False.
         # Para este proyecto, priorizaremos que la escritura al primario sea el indicador de éxito para el cliente.
         
-        return dfs_service_pb2.WriteBlockResponse(success=True, message=final_message)
+        return dfs_pb2.WriteBlockResponse(success=True, message=final_message)
 
-    async def _replicate_block_to_single_follower(self, block_id: str, data: bytes, original_block_info: dfs_service_pb2.BlockInfo, follower_info: dfs_service_pb2.DataNodeLocation) -> dict:
+    async def _replicate_block_to_single_follower(self, block_id: str, data: bytes, original_block_info: dfs_pb2.BlockInfo, follower_info: dfs_pb2.DataNodeLocation) -> dict:
         """
         Función de ayuda para replicar un bloque a un único DataNode seguidor.
         """
         # print(f"DataNode [{THIS_DATANODE_ID}]: Intentando replicar bloque {block_id} a seguidor {follower_info.datanode_id} en {follower_info.datanode_address}")
         try:
             async with grpc.aio.insecure_channel(follower_info.datanode_address) as channel:
-                stub = dfs_service_pb2_grpc.DataNodeOperationsStub(channel)
+                stub = dfs_pb2_grpc.DataNodeOperationsStub(channel)
                 
                 # El seguidor solo necesita almacenar el bloque, no necesita replicar más allá.
                 # Se usa la información original del bloque (file_id, index, size) que vino del cliente.
-                replication_req = dfs_service_pb2.ReplicateBlockToFollowerRequest(
+                replication_req = dfs_pb2.ReplicateBlockToFollowerRequest(
                     block_info=original_block_info, # Pasar la BlockInfo original
                     data=data
                 )
@@ -138,7 +138,7 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
             return {"success": False, "message": f"Excepción general al replicar {block_id} a {follower_info.datanode_id}: {e_generic}"}
 
 
-    async def ReadBlock(self, request: dfs_service_pb2.ReadBlockRequest, context: grpc.aio.ServicerContext):
+    async def ReadBlock(self, request: dfs_pb2.ReadBlockRequest, context: grpc.aio.ServicerContext):
         """
         RPC para que un cliente lea un bloque desde este DataNode.
         """
@@ -147,7 +147,7 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
             print(error_message)
             context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details(error_message)
-            return dfs_service_pb2.ReadBlockResponse(data=b"", success=False, message=error_message)
+            return dfs_pb2.ReadBlockResponse(data=b"", success=False, message=error_message)
 
         block_id_to_read = request.block_id
         # print(f"DataNode [{THIS_DATANODE_ID}]: Solicitud ReadBlock recibida para ID: {block_id_to_read}")
@@ -156,16 +156,16 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
 
         if block_data is not None:
             # print(f"DataNode [{THIS_DATANODE_ID}]: Bloque {block_id_to_read} leído exitosamente (tamaño: {len(block_data)} bytes).")
-            return dfs_service_pb2.ReadBlockResponse(data=block_data, success=True, message="Bloque leído exitosamente.")
+            return dfs_pb2.ReadBlockResponse(data=block_data, success=True, message="Bloque leído exitosamente.")
         else:
             error_message = f"DataNode [{THIS_DATANODE_ID}]: Bloque {block_id_to_read} no encontrado o no se pudo leer."
             # print(error_message)
             context.set_code(grpc.StatusCode.NOT_FOUND) # El recurso (bloque) no fue encontrado
             context.set_details(error_message)
-            return dfs_service_pb2.ReadBlockResponse(data=b"", success=False, message=error_message)
+            return dfs_pb2.ReadBlockResponse(data=b"", success=False, message=error_message)
 
 
-    async def ReplicateBlockToFollower(self, request: dfs_service_pb2.ReplicateBlockToFollowerRequest, context: grpc.aio.ServicerContext):
+    async def ReplicateBlockToFollower(self, request: dfs_pb2.ReplicateBlockToFollowerRequest, context: grpc.aio.ServicerContext):
         """
         RPC para que otro DataNode (actuando como líder de bloque) envíe una réplica
         de un bloque para que este DataNode (actuando como seguidor) la almacene.
@@ -175,7 +175,7 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
             print(error_message)
             context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details(error_message)
-            return dfs_service_pb2.ReplicateBlockToFollowerResponse(success=False, message=error_message)
+            return dfs_pb2.ReplicateBlockToFollowerResponse(success=False, message=error_message)
 
         block_info = request.block_info
         block_id = block_info.block_id
@@ -188,13 +188,13 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
 
         if write_success:
             # print(f"DataNode [{THIS_DATANODE_ID}] (como Seguidor): Réplica del bloque {block_id} almacenada exitosamente.")
-            return dfs_service_pb2.ReplicateBlockToFollowerResponse(success=True, message="Réplica del bloque almacenada exitosamente.")
+            return dfs_pb2.ReplicateBlockToFollowerResponse(success=True, message="Réplica del bloque almacenada exitosamente.")
         else:
             error_message = f"DataNode [{THIS_DATANODE_ID}] (como Seguidor): Fallo al almacenar la réplica del bloque {block_id}."
             print(error_message)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(error_message)
-            return dfs_service_pb2.ReplicateBlockToFollowerResponse(success=False, message=error_message)
+            return dfs_pb2.ReplicateBlockToFollowerResponse(success=False, message=error_message)
 
     # Si se implementa un comando directo del NameNode para eliminar bloques (en lugar de vía heartbeat):
     # async def DeleteBlocks(self, request: dfs_service_pb2.DeleteBlocksRequest, context):
@@ -215,4 +215,4 @@ class DataNodeOperationsServicer(dfs_service_pb2_grpc.DataNodeOperationsServicer
     #     final_msg = f"Eliminados {success_count} bloques, fallaron {fail_count}."
     #     if messages: final_msg += " Errores: " + "; ".join(messages)
         
-    #     return dfs_service_pb2.DeleteBlocksResponse(success=(fail_count == 0), message=final_msg)
+    #     return dfs_pb2.DeleteBlocksResponse(success=(fail_count == 0), message=final_msg)

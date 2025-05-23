@@ -14,7 +14,7 @@ from .block_store import BlockStore
 from .heartbeat_client import run_heartbeat_sender
 
 # Importaciones de los stubs generados por gRPC
-import dfs_service_pb2_grpc
+import dfs_pb2_grpc
 
 # --- Cargar Configuraciones desde config_datanode.py ---
 # Accedemos a las variables directamente desde el módulo 'cfg'
@@ -54,7 +54,7 @@ async def serve_datanode_grpc_server():
     """Configura e inicia el servidor gRPC principal del DataNode."""
     server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=GRPC_SERVER_MAX_WORKERS))
     
-    dfs_service_pb2_grpc.add_DataNodeOperationsServicer_to_server(
+    dfs_pb2_grpc.add_DataNodeOperationsServicer_to_server(
         DataNodeOperationsServicer(),
         server
     )

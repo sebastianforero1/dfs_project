@@ -5,26 +5,26 @@ import grpc
 # Importaciones de los stubs generados por gRPC
 # Asegúrate de que dfs_service_pb2.py y dfs_service_pb2_grpc.py
 # estén en la raíz del proyecto o en una ubicación accesible por PYTHONPATH.
-import dfs_service_pb2 
-import dfs_service_pb2_grpc
+import dfs_pb2 
+import dfs_pb2_grpc
 
 # Importar la instancia de MetadataManager (asumiendo que se inyectará o será accesible)
 # Esta es una referencia que se establecerá en main_namenode.py
 metadata_manager = None # Se asignará desde main_namenode.py
 
-class NameNodeManagementServicer(dfs_service_pb2_grpc.NameNodeManagementServicer):
+class NameNodeManagementServicer(dfs_pb2_grpc.NameNodeManagementServicer):
     """
     Implementación del servicio gRPC 'NameNodeManagement'.
     Este servicio es utilizado por los DataNodes para enviar heartbeats
     y reportes de bloques al NameNode.
     """
 
-    async def SendHeartbeat(self, request: dfs_service_pb2.HeartbeatRequest, context: grpc.aio.ServicerContext):
+    async def SendHeartbeat(self, request: dfs_pb2.HeartbeatRequest, context: grpc.aio.ServicerContext):
         """
         Procesa un mensaje de heartbeat enviado por un DataNode.
 
         Args:
-            request (dfs_service_pb2.HeartbeatRequest): La solicitud de heartbeat del DataNode.
+            request (dfs_pb2.HeartbeatRequest): La solicitud de heartbeat del DataNode.
                 Contiene:
                 - datanode_info (DataNodeLocation): ID y dirección del DataNode.
                 - block_ids_stored (repeated string): Lista de IDs de bloques que el DataNode almacena.
@@ -32,7 +32,7 @@ class NameNodeManagementServicer(dfs_service_pb2_grpc.NameNodeManagementServicer
             context (grpc.aio.ServicerContext): Contexto de la llamada gRPC.
 
         Returns:
-            dfs_service_pb2.HeartbeatResponse: Una respuesta que puede incluir comandos
+            dfs_pb2.HeartbeatResponse: Una respuesta que puede incluir comandos
             para el DataNode (ej. eliminar bloques, replicar bloques).
         """
         if metadata_manager is None:
@@ -42,7 +42,7 @@ class NameNodeManagementServicer(dfs_service_pb2_grpc.NameNodeManagementServicer
             print(f"ERROR CRÍTICO: {error_message}")
             context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details(error_message)
-            return dfs_service_pb2.HeartbeatResponse()
+            return dfs_pb2.HeartbeatResponse()
 
         datanode_id = request.datanode_info.datanode_id
         datanode_address = request.datanode_info.datanode_address
@@ -61,7 +61,7 @@ class NameNodeManagementServicer(dfs_service_pb2_grpc.NameNodeManagementServicer
             )
 
             # Devolver los comandos (si los hay) al DataNode
-            return dfs_service_pb2.HeartbeatResponse(commands_from_namenode=commands_for_datanode)
+            return dfs_pb2.HeartbeatResponse(commands_from_namenode=commands_for_datanode)
 
         except Exception as e:
             # Manejar cualquier excepción inesperada durante el procesamiento del heartbeat.
@@ -69,12 +69,12 @@ class NameNodeManagementServicer(dfs_service_pb2_grpc.NameNodeManagementServicer
             print(f"ERROR: {error_message}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(error_message)
-            return dfs_service_pb2.HeartbeatResponse()
+            return dfs_pb2.HeartbeatResponse()
 
 # Si hubiera otros servicios gRPC que el NameNode expone (por ejemplo, para la sincronización
 # con un NameNode seguidor), sus implementaciones (Servicers) se añadirían aquí.
 # Ejemplo:
-# class NameNodeSyncServicer(dfs_service_pb2_grpc.NameNodeSyncServicer):
+# class NameNodeSyncServicer(dfs_pb2_grpc.NameNodeSyncServicer):
 #     async def SyncMetadata(self, request_iterator, context):
 #         # Implementación de la lógica de sincronización
 #         pass

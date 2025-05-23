@@ -10,8 +10,8 @@ import json
 from . import config_client as cfg_sdk # Usamos cfg_sdk para evitar confusión con cfg de otros componentes
 
 # Importar los stubs generados por gRPC
-import dfs_service_pb2
-import dfs_service_pb2_grpc
+import dfs_pb2
+import dfs_pb2_grpc
 
 class DFSClientSDK:
     def __init__(self, 
