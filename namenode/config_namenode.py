@@ -7,7 +7,7 @@ import os
 # La IP pública de la instancia EC2 donde corre el NameNode.
 # El servidor escuchará en 'NAMENODE_LISTEN_HOST' (usualmente 0.0.0.0)
 # pero esta IP es la que los clientes y DataNodes externos usarán para conectarse.
-NAMENODE_PUBLIC_IP = os.environ.get("NAMENODE_PUBLIC_IP", "54.211.106.70") # Tu IP proporcionada
+NAMENODE_PUBLIC_IP = os.environ.get("NAMENODE_PUBLIC_IP", "3.84.25.83") # Tu IP proporcionada
 
 # Host en el que los servidores del NameNode escucharán.
 # '0.0.0.0' permite escuchar en todas las interfaces de red disponibles.

@@ -7,7 +7,7 @@ import os
 # URL base de la API REST del NameNode.
 # Esta es la dirección que el cliente usará para todas las operaciones de metadatos.
 # Se intenta leer de una variable de entorno; si no existe, se usa un valor por defecto.
-# Ejemplo de variable de entorno: export NAMENODE_REST_URL="http://54.211.106.70:8000"
+# Ejemplo de variable de entorno: export NAMENODE_REST_URL="http://3.84.25.83:8000"
 DEFAULT_NAMENODE_REST_BASE_URL = "http://localhost:8000" # Valor por defecto para desarrollo local
 NAMENODE_REST_URL = os.environ.get("NAMENODE_REST_URL", DEFAULT_NAMENODE_REST_BASE_URL)
 
