@@ -191,13 +191,13 @@ class DFSClientSDK:
                     follower_dns_info = alloc_response.get("follower_datanodes", [])
                     # ... (lógica de preparación de gRPC idéntica)
                     print(f"  Bloque {i+1} (ID: {block_id}), Primario: {primary_dn_info['id']} ({primary_dn_info['address']})")
-                    dn_followers_for_grpc = [ dfs_service_pb2.DataNodeLocation(datanode_id=f['id'], datanode_address=f['address']) for f in follower_dns_info]
-                    block_info_for_dn = dfs_service_pb2.BlockInfo(block_id=block_id, file_id=file_id, block_index=i, block_size=current_block_actual_size)
-                    write_block_req = dfs_service_pb2.WriteBlockRequest(block_info=block_info_for_dn, data=block_content, followers_for_replication=dn_followers_for_grpc)
+                    dn_followers_for_grpc = [ dfs_pb2.DataNodeLocation(datanode_id=f['id'], datanode_address=f['address']) for f in follower_dns_info]
+                    block_info_for_dn = dfs_pb2.BlockInfo(block_id=block_id, file_id=file_id, block_index=i, block_size=current_block_actual_size)
+                    write_block_req = dfs_pb2.WriteBlockRequest(block_info=block_info_for_dn, data=block_content, followers_for_replication=dn_followers_for_grpc)
                     
                     try:
                         with grpc.insecure_channel(primary_dn_info["address"]) as channel:
-                            stub = dfs_service_pb2_grpc.DataNodeOperationsStub(channel)
+                            stub = dfs_pb2_grpc.DataNodeOperationsStub(channel)
                             # Usar el timeout de gRPC configurado
                             dn_response = stub.WriteBlock(write_block_req, timeout=self.grpc_block_op_timeout)
                             if not dn_response.success: # ... (manejo de error idéntico)
@@ -266,8 +266,8 @@ class DFSClientSDK:
                         dn_id_str = dn_loc_info["id"]
                         try:
                             with grpc.insecure_channel(dn_address) as channel:
-                                stub = dfs_service_pb2_grpc.DataNodeOperationsStub(channel)
-                                read_req = dfs_service_pb2.ReadBlockRequest(block_id=block_id)
+                                stub = dfs_pb2_grpc.DataNodeOperationsStub(channel)
+                                read_req = dfs_pb2.ReadBlockRequest(block_id=block_id)
                                 # Usar el timeout de gRPC configurado
                                 dn_response = stub.ReadBlock(read_req, timeout=self.grpc_block_op_timeout)
                                 if dn_response.success and dn_response.data is not None: # ... (lógica de éxito idéntica)
